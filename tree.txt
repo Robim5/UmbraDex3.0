@@ -1,0 +1,164 @@
+app/
+├── src/main/
+│   ├── java/com/yourusername/umbradex/
+│   │   ├── MainActivity.kt
+│   │   ├── UmbraDexApplication.kt
+│   │   │
+│   │   ├── data/
+│   │   │   ├── model/
+│   │   │   │   ├── User.kt
+│   │   │   │   ├── Pokemon.kt
+│   │   │   │   ├── Team.kt
+│   │   │   │   ├── ShopItem.kt
+│   │   │   │   ├── Mission.kt
+│   │   │   │   └── UserInventory.kt
+│   │   │   │
+│   │   │   ├── repository/
+│   │   │   │   ├── AuthRepository.kt
+│   │   │   │   ├── UserRepository.kt
+│   │   │   │   ├── PokemonRepository.kt
+│   │   │   │   ├── ShopRepository.kt
+│   │   │   │   └── MissionRepository.kt
+│   │   │   │
+│   │   │   └── local/
+│   │   │       ├── PreferencesManager.kt
+│   │   │       └── DatabaseCache.kt
+│   │   │
+│   │   ├── ui/
+│   │   │   ├── theme/
+│   │   │   │   ├── Color.kt
+│   │   │   │   ├── Theme.kt
+│   │   │   │   └── Type.kt
+│   │   │   │
+│   │   │   ├── auth/
+│   │   │   │   ├── LoginScreen.kt
+│   │   │   │   ├── SignUpScreen.kt
+│   │   │   │   ├── OnboardingScreen.kt
+│   │   │   │   └── AuthViewModel.kt
+│   │   │   │
+│   │   │   ├── home/
+│   │   │   │   ├── HomeScreen.kt
+│   │   │   │   ├── HomeViewModel.kt
+│   │   │   │   └── components/
+│   │   │   │       ├── ProfileHeader.kt
+│   │   │   │       ├── PetDisplay.kt
+│   │   │   │       └── TeamList.kt
+│   │   │   │
+│   │   │   ├── pokedex/
+│   │   │   │   ├── PokedexScreen.kt
+│   │   │   │   ├── PokedexViewModel.kt
+│   │   │   │   ├── PokemonDetailScreen.kt
+│   │   │   │   └── components/
+│   │   │   │       ├── PokemonCard.kt
+│   │   │   │       ├── FilterBar.kt
+│   │   │   │       └── SearchBar.kt
+│   │   │   │
+│   │   │   ├── livingdex/
+│   │   │   │   ├── LivingDexScreen.kt
+│   │   │   │   ├── LivingDexViewModel.kt
+│   │   │   │   └── components/
+│   │   │   │       └── StatsCard.kt
+│   │   │   │
+│   │   │   ├── shop/
+│   │   │   │   ├── ShopScreen.kt
+│   │   │   │   ├── ShopViewModel.kt
+│   │   │   │   └── components/
+│   │   │   │       └── ShopItemCard.kt
+│   │   │   │
+│   │   │   ├── missions/
+│   │   │   │   ├── MissionsScreen.kt
+│   │   │   │   ├── MissionsViewModel.kt
+│   │   │   │   └── components/
+│   │   │   │       └── MissionCard.kt
+│   │   │   │
+│   │   │   ├── inventory/
+│   │   │   │   ├── InventoryScreen.kt
+│   │   │   │   ├── InventoryViewModel.kt
+│   │   │   │   └── components/
+│   │   │   │       └── InventoryItem.kt
+│   │   │   │
+│   │   │   ├── settings/
+│   │   │   │   ├── SettingsScreen.kt
+│   │   │   │   └── SettingsViewModel.kt
+│   │   │   │
+│   │   │   └── navigation/
+│   │   │       ├── NavGraph.kt
+│   │   │       └── BottomNavBar.kt
+│   │   │
+│   │   └── util/
+│   │       ├── Constants.kt
+│   │       ├── Extensions.kt
+│   │       ├── AudioPlayer.kt
+│   │       └── NetworkResult.kt
+│   │
+│   ├── res/
+│   │   ├── drawable/
+│   │   │	 ├── characters/
+│   │   │	 │	├── female_start/
+│   │   │	 │	│    ├── female2.png
+│   │   │	 │	│    ├── female2.png
+│   │   │	 │	│    ├── female3.png
+│   │   │	 │	│    ├── female4.png
+│   │   │	 │	│    └── female5.png
+│   │   │	 │	├── male_start/
+│   │   │	 │	│    ├── male1.png
+│   │   │	 │	│    ├── male2.png
+│   │   │	 │	│    ├── male3.png
+│   │   │	 │	│    ├── male4.png
+│   │   │	 │	│    └── male5.png
+│   │   │	 │	├── shop/
+│   │   │	 │	     ├── common_fightboy.png
+│   │   │	 │	     ├── common_girldance.png
+│   │   │	 │	     ├── common_greenhair.png
+│   │   │	 │	     ├── epic_purplegirl.png
+│   │   │	 │	     ├── epic_waterguy.png
+│   │   │	 │	     ├── legendary_dreamgirl.png
+│   │   │	 │	     ├── legendary_ninjaboy.png
+│   │   │	 │	     ├── legendary_oldguy.png
+│   │   │	 │	     ├── rare_artistboy.png
+│   │   │	 │	     └── rare_ghostlady.png
+│   │   │	 ├── badgets/ (show in the store)
+│   │   │	 │	├── common/
+│   │   │	 │	|	├── balance.png
+│   │   │	 │	|	├── feather.png
+│   │   │	 │	|	├── rain.png
+│   │   │	 │	|	└── rock.png
+│   │   │	 │	├── rare/
+│   │   │	 │	|	├── fire.png
+│   │   │	 │	|	├── leaf.png
+│   │   │	 │	|	├── petal.png
+│   │   │	 │	|	└── water.png
+│   │   │	 │	├── epic/
+│   │   │	 │	|	├── ghost.png
+│   │   │	 │	|	├── ice.png
+│   │   │	 │	|	└── sunflower.png
+│   │   │	 │	├── legendar/
+│   │   │	 │	|	├── gold.png
+│   │   │	 │	|	├── hearth.png
+│   │   │	 │	|	└── rainbow.png
+│   │   │	 │	|	└── demon.png
+│   │   │	 │	└── start/  
+│   │   │	 │		└── start.png 
+│   │   │   ├── logo.png (main logo app)
+│   │   │   ├── money.png
+│   │   │   └── ic_launcher.xml
+│   │   │
+│   │   ├── raw/
+│   │   │	 ├── events/
+│   │   │	 │	├── completequest.wav (click on "get reward")
+│   │   │	 │	├── equipbadget.wav  (equip something)
+│   │   │	 │	├── getsomething.wav (buy something)
+│   │   │	 │	├── goodanimal.wav (click on the animal)
+│   │   │	 │	└── opendashboard.wav (enter in the app, like welcome)
+│   │   │	 └── background.wav (when the app is opening)
+│   │   │
+│   │   ├── values/
+│   │   │   ├── colors.xml
+│   │   │   ├── strings.xml
+│   │   │   └── themes.xml
+│   │   │
+│   │   └── ... (other resources)
+│   │
+│   └── AndroidManifest.xml
+│
+└── build.gradle.kts (dependencies)
