@@ -20,6 +20,12 @@ app/
 │   │   │   │   ├── ShopRepository.kt
 │   │   │   │   └── MissionRepository.kt
 │   │   │   │
+│   │   │   ├── remote/
+│   │   │   │   └── pokeapi/
+│   │   │   │   		├── PokeAPIInterface.kt
+│   │   │   │   		├── PokeAPIModels.kt
+│   │   │   │   		└── PokeAPIRetrofit.kt
+│   │   │   │
 │   │   │   └── local/
 │   │   │       ├── PreferencesManager.kt
 │   │   │       └── DatabaseCache.kt
@@ -95,7 +101,7 @@ app/
 │   │   ├── drawable/
 │   │   │	 ├── characters/
 │   │   │	 │	├── female_start/
-│   │   │	 │	│    ├── female2.png
+│   │   │	 │	│    ├── female1.png
 │   │   │	 │	│    ├── female2.png
 │   │   │	 │	│    ├── female3.png
 │   │   │	 │	│    ├── female4.png
@@ -132,7 +138,7 @@ app/
 │   │   │	 │	|	├── ghost.png
 │   │   │	 │	|	├── ice.png
 │   │   │	 │	|	└── sunflower.png
-│   │   │	 │	├── legendar/
+│   │   │	 │	├── legendary/
 │   │   │	 │	|	├── gold.png
 │   │   │	 │	|	├── hearth.png
 │   │   │	 │	|	└── rainbow.png

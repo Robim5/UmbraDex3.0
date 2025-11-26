@@ -8,14 +8,18 @@ android {
     namespace = "com.umbra.umbradex"
     compileSdk = 34
 
+    lint {
+        disable.add("UnsafeOptInUsageError")
+    }
+
     defaultConfig {
         applicationId = "com.umbra.umbradex"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -30,19 +34,30 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += listOf(
+            "-opt-in=kotlinx.serialization.InternalSerializationApi",
+            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi"
+        )
     }
+
     buildFeatures {
         compose = true
     }
+
+    // Em app/build.gradle.kts
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
+        kotlinCompilerExtensionVersion = "1.5.8" // 1.5.4
     }
+
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -71,21 +86,21 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    // Supabase
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.1.4")
-    implementation("io.github.jan-tennert.supabase:auth-kt:2.1.4")
-    implementation("io.github.jan-tennert.supabase:storage-kt:2.1.4")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:2.1.4")
+    // Supabase - VERSÕES ATUALIZADAS
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:auth-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.1")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:2.6.1")
 
-    // Ktor (required by Supabase)
-    implementation("io.ktor:ktor-client-android:2.3.7")
-    implementation("io.ktor:ktor-client-core:2.3.7")
-    implementation("io.ktor:ktor-utils:2.3.7")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.7")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
+    // Ktor (required by Supabase) - VERSÕES ATUALIZADAS
+    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-core:2.3.12")
+    implementation("io.ktor:ktor-utils:2.3.12")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
 
-    // Kotlinx Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    // Kotlinx Serialization - VERSÃO ATUALIZADA
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
