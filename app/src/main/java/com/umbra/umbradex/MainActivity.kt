@@ -8,6 +8,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.umbra.umbradex.ui.theme.UmbraDexTheme
+import androidx.compose.runtime.*
+import com.umbra.umbradex.ui.auth.AuthContainer
+import com.umbra.umbradex.ui.splash.SplashScreen
+import com.umbra.umbradex.ui.navigation.MainNavigation
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,8 +23,34 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Navigation will go here
-                    // For now, just a placeholder
+                    var showSplash by remember { mutableStateOf(true) }
+                    var isAuthenticated by remember { mutableStateOf(false) }
+
+                    when {
+                        showSplash -> {
+                            SplashScreen(
+                                onSplashComplete = {
+                                    showSplash = false
+                                }
+                            )
+                        }
+
+                        isAuthenticated -> {
+                            MainNavigation(
+                                onLogout = {
+                                    isAuthenticated = false
+                                }
+                            )
+                        }
+
+                        else -> {
+                            AuthContainer(
+                                onAuthSuccess = {
+                                    isAuthenticated = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
