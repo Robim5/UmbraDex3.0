@@ -128,6 +128,7 @@ dependencies {
 
     // Gson (JSON parsing)
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation(libs.androidx.compose.material3.android)
 
     // Testing
     testImplementation("junit:junit:4.13.2")

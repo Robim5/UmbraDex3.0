@@ -1,4 +1,4 @@
-app/
+app/src/main/java/com/umbra/umbradex/
 ├── src/main/
 │   ├── java/com/yourusername/umbradex/
 │   │   ├── MainActivity.kt
@@ -6,19 +6,12 @@ app/
 │   │   │
 │   │   ├── data/
 │   │   │   ├── model/
-│   │   │   │   ├── User.kt
-│   │   │   │   ├── Pokemon.kt
-│   │   │   │   ├── Team.kt
-│   │   │   │   ├── ShopItem.kt
 │   │   │   │   ├── Mission.kt
+│   │   │   │   ├── Pokemon.kt
+│   │   │   │   ├── ShopItem.kt
+│   │   │   │   ├── Team.kt
+│   │   │   │   ├── User.kt
 │   │   │   │   └── UserInventory.kt
-│   │   │   │
-│   │   │   ├── repository/
-│   │   │   │   ├── AuthRepository.kt
-│   │   │   │   ├── UserRepository.kt
-│   │   │   │   ├── PokemonRepository.kt
-│   │   │   │   ├── ShopRepository.kt
-│   │   │   │   └── MissionRepository.kt
 │   │   │   │
 │   │   │   ├── remote/
 │   │   │   │   └── pokeapi/
@@ -26,9 +19,21 @@ app/
 │   │   │   │   		├── PokeAPIModels.kt
 │   │   │   │   		└── PokeAPIRetrofit.kt
 │   │   │   │
+│   │   │   ├── repository/
+│   │   │   │   ├── AuthRepository.kt
+│   │   │   │   ├── FavoritesRepository.kt
+│   │   │   │   ├── InventoryRepository
+│   │   │   │   ├── LivingDexRepository.kt
+│   │   │   │   ├── MissionRepository.kt
+│   │   │   │   ├── PokemonRepository
+│   │   │   │   ├── ShopRepository.kt
+│   │   │   │   ├── TeamRepository.kt
+│   │   │   │   └── UserRepository.kt
+│   │   │   │
+│   │   │   │
 │   │   │   └── local/
 │   │   │       ├── PreferencesManager.kt
-│   │   │       └── DatabaseCache.kt
+│   │   │       └── DatabaseCache
 │   │   │
 │   │   ├── ui/
 │   │   │   ├── theme/
@@ -37,26 +42,33 @@ app/
 │   │   │   │   └── Type.kt
 │   │   │   │
 │   │   │   ├── auth/
+│   │   │   │   ├── AuthContainer.kt
+│   │   │   │   ├── AuthViewModel.kt
 │   │   │   │   ├── LoginScreen.kt
-│   │   │   │   ├── SignUpScreen.kt
 │   │   │   │   ├── OnboardingScreen.kt
-│   │   │   │   └── AuthViewModel.kt
+│   │   │   │   └── SignUpScreen.kt
+│   │   │   │
+│   │   │   ├── components/
+│   │   │   │   └── LoadingComponents.kt
 │   │   │   │
 │   │   │   ├── home/
 │   │   │   │   ├── HomeScreen.kt
 │   │   │   │   ├── HomeViewModel.kt
 │   │   │   │   └── components/
-│   │   │   │       ├── ProfileHeader.kt
 │   │   │   │       ├── PetDisplay.kt
+│   │   │   │       ├── ProfileHeader.kt
 │   │   │   │       └── TeamList.kt
 │   │   │   │
 │   │   │   ├── pokedex/
 │   │   │   │   ├── PokedexScreen.kt
 │   │   │   │   ├── PokedexViewModel.kt
 │   │   │   │   ├── PokemonDetailScreen.kt
+│   │   │   │   ├── PokemonDetailViewModel.kt
 │   │   │   │   └── components/
-│   │   │   │       ├── PokemonCard.kt
+│   │   │   │       ├── EvolutionChain.kt
 │   │   │   │       ├── FilterBar.kt
+│   │   │   │       ├── PokemonCard.kt
+│   │   │   │       ├── StatBar.kt
 │   │   │   │       └── SearchBar.kt
 │   │   │   │
 │   │   │   ├── livingdex/
@@ -70,6 +82,9 @@ app/
 │   │   │   │   ├── ShopViewModel.kt
 │   │   │   │   └── components/
 │   │   │   │       └── ShopItemCard.kt
+│   │   │   │
+│   │   │   ├── splash/
+│   │   │   │   └── SplashScreen.kt
 │   │   │   │
 │   │   │   ├── missions/
 │   │   │   │   ├── MissionsScreen.kt
@@ -89,6 +104,7 @@ app/
 │   │   │   │
 │   │   │   └── navigation/
 │   │   │       ├── NavGraph.kt
+│   │   │       ├── Routes.kt
 │   │   │       └── BottomNavBar.kt
 │   │   │
 │   │   └── util/
@@ -99,52 +115,41 @@ app/
 │   │
 │   ├── res/
 │   │   ├── drawable/
-│   │   │	 ├── characters/
-│   │   │	 │	├── female_start/
-│   │   │	 │	│    ├── female1.png
-│   │   │	 │	│    ├── female2.png
-│   │   │	 │	│    ├── female3.png
-│   │   │	 │	│    ├── female4.png
-│   │   │	 │	│    └── female5.png
-│   │   │	 │	├── male_start/
-│   │   │	 │	│    ├── male1.png
-│   │   │	 │	│    ├── male2.png
-│   │   │	 │	│    ├── male3.png
-│   │   │	 │	│    ├── male4.png
-│   │   │	 │	│    └── male5.png
-│   │   │	 │	├── shop/
-│   │   │	 │	     ├── common_fightboy.png
-│   │   │	 │	     ├── common_girldance.png
-│   │   │	 │	     ├── common_greenhair.png
-│   │   │	 │	     ├── epic_purplegirl.png
-│   │   │	 │	     ├── epic_waterguy.png
-│   │   │	 │	     ├── legendary_dreamgirl.png
-│   │   │	 │	     ├── legendary_ninjaboy.png
-│   │   │	 │	     ├── legendary_oldguy.png
-│   │   │	 │	     ├── rare_artistboy.png
-│   │   │	 │	     └── rare_ghostlady.png
-│   │   │	 ├── badgets/ (show in the store)
-│   │   │	 │	├── common/
-│   │   │	 │	|	├── balance.png
-│   │   │	 │	|	├── feather.png
-│   │   │	 │	|	├── rain.png
-│   │   │	 │	|	└── rock.png
-│   │   │	 │	├── rare/
-│   │   │	 │	|	├── fire.png
-│   │   │	 │	|	├── leaf.png
-│   │   │	 │	|	├── petal.png
-│   │   │	 │	|	└── water.png
-│   │   │	 │	├── epic/
-│   │   │	 │	|	├── ghost.png
-│   │   │	 │	|	├── ice.png
-│   │   │	 │	|	└── sunflower.png
-│   │   │	 │	├── legendary/
-│   │   │	 │	|	├── gold.png
-│   │   │	 │	|	├── hearth.png
-│   │   │	 │	|	└── rainbow.png
-│   │   │	 │	|	└── demon.png
-│   │   │	 │	└── start/  
-│   │   │	 │		└── start.png 
+│   │   │	 │	├── standard_female1.png
+│   │   │	 │	├── standard_female2.png
+│   │   │	 │	├── standard_female3.png
+│   │   │	 │	├── standard_female4.png
+│   │   │	 │	├── standard_female5.png
+│   │   │	 │	├── standard_male1.png
+│   │   │	 │	├── standard_male2.png
+│   │   │	 │	├── standard_male3.png
+│   │   │	 │	├── standard_male4.png
+│   │   │	 │	├── standard_male5.png
+│   │   │	 │	├── shop_common_fightboy.png
+│   │   │	 │	├── shop_common_girldance.png
+│   │   │	 │	├── shop_common_greenhair.png
+│   │   │	 │	├── shop_epic_purplegirl.png
+│   │   │	 │	├── shop_epic_waterguy.png
+│   │   │	 │	├── shop_legendary_dreamgirl.png
+│   │   │	 │	├── shop_legendary_ninjaboy.png
+│   │   │	 │	├── shop_legendary_oldguy.png
+│   │   │	 │	├── shop_rare_artistboy.png
+│   │   │	 │	├── shop_common_balance.png
+│   │   │	 │	├── shop_common_feather.png
+│   │   │	 │	├── shop_common_rain.png
+│   │   │	 │	├── shop_common_rock.png
+│   │   │	 │	├── shop_rare_fire.png
+│   │   │	 │	├── shop_rare_leaf.png
+│   │   │	 │	├── shop_rare_petal.png
+│   │   │	 │	├── shop_rare_water.png
+│   │   │	 │	├── shop_epic_ghost.png
+│   │   │	 │	├── shop_epic_ice.png
+│   │   │	 │	├── shop_epic_sunflower.png
+│   │   │	 │	├── shop_legendary_gold.png
+│   │   │	 │	├── shop_legendary_hearth.png
+│   │   │	 │	├── shop_legendary_rainbow.png
+│   │   │	 │	├── shop_legendary_demon.png
+│   │   │	 │	├── start_badget.png 
 │   │   │   ├── logo.png (main logo app)
 │   │   │   ├── money.png
 │   │   │   └── ic_launcher.xml

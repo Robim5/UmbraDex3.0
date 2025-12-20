@@ -1,13 +1,12 @@
-package com.umbra.umbradex.ui.livingdex.components
+package com.umbra.umbradex.ui.missions.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,18 +14,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.umbra.umbradex.data.repository.LivingDexStats
-import com.umbra.umbradex.ui.livingdex.TypeCount
+import com.umbra.umbradex.data.repository.MissionStats
 import com.umbra.umbradex.ui.theme.*
 
 @Composable
-fun StatsCard(
-    stats: LivingDexStats,
-    topTypes: List<TypeCount>,
+fun MissionStatsCard(
+    stats: MissionStats,
     modifier: Modifier = Modifier
 ) {
     var animationPlayed by remember { mutableStateOf(false) }
-    val progress = stats.percentageComplete / 100f
+    val progress = stats.completionPercentage / 100f
 
     val animatedProgress by animateFloatAsState(
         targetValue = if (animationPlayed) progress else 0f,
@@ -57,7 +54,7 @@ fun StatsCard(
                     .background(
                         Brush.horizontalGradient(
                             colors = listOf(
-                                SuccessColor.copy(alpha = 0.3f),
+                                WarningColor.copy(alpha = 0.3f),
                                 PurplePrimary.copy(alpha = 0.2f)
                             )
                         )
@@ -76,16 +73,16 @@ fun StatsCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Collection Progress",
+                        text = "Mission Progress",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
 
                     Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Progress",
-                        tint = SuccessColor,
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = "Trophy",
+                        tint = LegendaryColor,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -98,9 +95,10 @@ fun StatsCard(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     StatItem(
-                        label = "Owned",
-                        value = stats.totalOwned.toString(),
-                        color = SuccessColor
+                        label = "Completed",
+                        value = stats.completed.toString(),
+                        color = SuccessColor,
+                        icon = Icons.Default.Check
                     )
 
                     Divider(
@@ -113,7 +111,8 @@ fun StatsCard(
                     StatItem(
                         label = "Remaining",
                         value = stats.remaining.toString(),
-                        color = TextSecondary
+                        color = WarningColor,
+                        icon = Icons.Default.HourglassEmpty
                     )
 
                     Divider(
@@ -125,8 +124,9 @@ fun StatsCard(
 
                     StatItem(
                         label = "Total",
-                        value = stats.totalPossible.toString(),
-                        color = PurpleTertiary
+                        value = stats.total.toString(),
+                        color = PurpleTertiary,
+                        icon = Icons.Default.Assignment
                     )
                 }
 
@@ -140,14 +140,14 @@ fun StatsCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Completion",
+                            text = "Overall Completion",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary,
                             fontWeight = FontWeight.Medium
                         )
 
                         Text(
-                            text = "${stats.percentageComplete}%",
+                            text = "${stats.completionPercentage}%",
                             style = MaterialTheme.typography.titleMedium,
                             color = SuccessColor,
                             fontWeight = FontWeight.Bold
@@ -167,33 +167,43 @@ fun StatsCard(
                     )
                 }
 
-                // Top Types
-                if (topTypes.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(24.dp))
+                // Legendary missions count
+                if (stats.legendaryCompleted > 0) {
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    HorizontalDivider(color = PurpleSurfaceVariant)
+                    Divider(color = PurpleSurfaceVariant)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = "Top Types",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        topTypes.forEach { typeCount ->
-                            TopTypeItem(
-                                typeCount = typeCount,
-                                modifier = Modifier.weight(1f)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Legendary",
+                                tint = LegendaryColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Legendary Missions",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
                             )
                         }
+
+                        Text(
+                            text = "${stats.legendaryCompleted}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = LegendaryColor
+                        )
                     }
                 }
             }
@@ -206,12 +216,20 @@ fun StatItem(
     label: String,
     value: String,
     color: androidx.compose.ui.graphics.Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.headlineMedium,
@@ -224,40 +242,5 @@ fun StatItem(
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary
         )
-    }
-}
-
-@Composable
-fun TopTypeItem(
-    typeCount: TypeCount,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = getTypeColor(typeCount.type).copy(alpha = 0.2f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = typeCount.type.replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = typeCount.count.toString(),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = getTypeColor(typeCount.type)
-            )
-        }
     }
 }
