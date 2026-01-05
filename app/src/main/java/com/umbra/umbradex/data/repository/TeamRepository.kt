@@ -1,134 +1,184 @@
 package com.umbra.umbradex.data.repository
 
-import com.umbra.umbradex.UmbraDexApplication
 import com.umbra.umbradex.data.model.Team
-import com.umbra.umbradex.util.NetworkResult
+import com.umbra.umbradex.data.supabase.UmbraSupabase
+import com.umbra.umbradex.utils.Resource
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
-import kotlinx.serialization.json.JsonPrimitive
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
 
 class TeamRepository {
 
-    private val supabase = UmbraDexApplication.supabase
+    /**
+     * Busca todas as equipas do utilizador com os seus Pokémon
+     */
+    suspend fun getUserTeams(): Flow<Resource<List<Team>>> = flow {
+        emit(Resource.Loading)
 
-    // Get all user teams
-    suspend fun getUserTeams(userId: String): NetworkResult<List<Team>> {
-        return try {
-            val result = supabase.from("user_teams")
-                .select {
+        try {
+            val userId = UmbraSupabase.client.auth.currentUserOrNull()?.id
+                ?: throw Exception("User not logged in")
+
+            // Buscar as equipas do utilizador
+            val teamsResponse = UmbraSupabase.client
+                .from("teams")
+                .select(columns = Columns.ALL) {
                     filter {
                         eq("user_id", userId)
                     }
+                    order("created_at", Order.ASCENDING)
                 }
                 .decodeList<Team>()
 
-            NetworkResult.Success(result)
+            // Para cada equipa, buscar os Pokémon
+            val teamsWithPokemon = teamsResponse.map { team ->
+                val pokemonResponse = UmbraSupabase.client
+                    .from("team_pokemon")
+                    .select(columns = Columns.ALL) {
+                        filter {
+                            eq("team_id", team.id)
+                        }
+                        order("slot_index", Order.ASCENDING)
+                    }
+                    .decodeList<Team.TeamPokemon>()
+
+                team.copy(pokemon = pokemonResponse)
+            }
+
+            emit(Resource.Success(teamsWithPokemon))
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch teams")
+            emit(Resource.Error("Failed to load teams: ${e.message}", e))
         }
     }
 
-    // Create new team
+    /**
+     * Cria uma nova equipa
+     */
     suspend fun createTeam(
-        userId: String,
         name: String,
-        region: String?,
-        pokemonIds: List<Int>
-    ): NetworkResult<Team> {
-        return try {
-            if (pokemonIds.size > 6) {
-                return NetworkResult.Error("Team cannot have more than 6 Pokemon")
-            }
+        region: String,
+        gradientColors: List<String>
+    ) {
+        val userId = UmbraSupabase.client.auth.currentUserOrNull()?.id
+            ?: throw Exception("User not logged in")
 
-            val team = buildJsonObject {
-                put("user_id", userId)
-                put("name", name)
-                region?.let { put("region", it) }
-                putJsonArray("pokemon_ids") {
-                    pokemonIds.forEach { add(JsonPrimitive(it)) }
-                }
-            }
-
-            val result = supabase.from("user_teams")
-                .insert(team)
-                .decodeSingle<Team>()
-
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to create team")
+        val teamData = buildJsonObject {
+            put("user_id", userId)
+            put("name", name)
+            put("region", region)
+            put("gradient_colors", gradientColors.toString()) // Converte para string JSON array
         }
+
+        UmbraSupabase.client
+            .from("teams")
+            .insert(teamData)
     }
 
-    // Update team
-    suspend fun updateTeam(
+    /**
+     * Adiciona ou substitui um Pokémon num slot específico
+     */
+    suspend fun addOrReplacePokemonInTeam(
         teamId: String,
-        name: String?,
-        region: String?,
-        pokemonIds: List<Int>?
-    ): NetworkResult<Team> {
-        return try {
-            pokemonIds?.let {
-                if (it.size > 6) {
-                    return NetworkResult.Error("Team cannot have more than 6 Pokemon")
+        slotIndex: Int,
+        pokemonId: Int,
+        pokemonName: String,
+        pokemonImageUrl: String,
+        pokemonTypes: List<String>,
+        level: Int
+    ) {
+        // Primeiro, verifica se já existe um Pokémon nesse slot
+        val existingPokemon = UmbraSupabase.client
+            .from("team_pokemon")
+            .select(columns = Columns.ALL) {
+                filter {
+                    eq("team_id", teamId)
+                    eq("slot_index", slotIndex)
                 }
             }
+            .decodeSingleOrNull<Team.TeamPokemon>()
 
-            val updates = buildJsonObject {
-                name?.let { put("name", it) }
-                region?.let { put("region", it) }
-                pokemonIds?.let {
-                    putJsonArray("pokemon_ids") {
-                        it.forEach { id -> add(JsonPrimitive(id)) }
-                    }
-                }
+        if (existingPokemon != null) {
+            // Atualizar o Pokémon existente
+            val updateData = buildJsonObject {
+                put("pokemon_id", pokemonId)
+                put("pokemon_name", pokemonName)
+                put("pokemon_image_url", pokemonImageUrl)
+                put("pokemon_types", pokemonTypes.toString())
+                put("level", level)
             }
 
-            val result = supabase.from("user_teams")
-                .update(updates) {
+            UmbraSupabase.client
+                .from("team_pokemon")
+                .update(updateData) {
                     filter {
-                        eq("id", teamId)
+                        eq("team_id", teamId)
+                        eq("slot_index", slotIndex)
                     }
                 }
-                .decodeSingle<Team>()
+        } else {
+            // Inserir novo Pokémon
+            val insertData = buildJsonObject {
+                put("team_id", teamId)
+                put("pokemon_id", pokemonId)
+                put("pokemon_name", pokemonName)
+                put("pokemon_image_url", pokemonImageUrl)
+                put("pokemon_types", pokemonTypes.toString())
+                put("level", level)
+                put("slot_index", slotIndex)
+            }
 
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to update team")
+            UmbraSupabase.client
+                .from("team_pokemon")
+                .insert(insertData)
         }
     }
 
-    // Delete team
-    suspend fun deleteTeam(teamId: String): NetworkResult<Unit> {
-        return try {
-            supabase.from("user_teams")
-                .delete {
-                    filter {
-                        eq("id", teamId)
-                    }
+    /**
+     * Remove um Pokémon de um slot específico
+     */
+    suspend fun removePokemonFromSlot(teamId: String, slotIndex: Int) {
+        UmbraSupabase.client
+            .from("team_pokemon")
+            .delete {
+                filter {
+                    eq("team_id", teamId)
+                    eq("slot_index", slotIndex)
                 }
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to delete team")
-        }
+            }
     }
 
-    // Get single team
-    suspend fun getTeam(teamId: String): NetworkResult<Team> {
-        return try {
-            val result = supabase.from("user_teams")
-                .select {
-                    filter {
-                        eq("id", teamId)
-                    }
-                }
-                .decodeSingle<Team>()
-
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch team")
+    /**
+     * Atualiza o nome de uma equipa
+     */
+    suspend fun updateTeamName(teamId: String, newName: String) {
+        val updateData = buildJsonObject {
+            put("name", newName)
         }
+
+        UmbraSupabase.client
+            .from("teams")
+            .update(updateData) {
+                filter {
+                    eq("id", teamId)
+                }
+            }
+    }
+
+    /**
+     * Elimina uma equipa (os Pokémon são eliminados automaticamente por CASCADE)
+     */
+    suspend fun deleteTeam(teamId: String) {
+        UmbraSupabase.client
+            .from("teams")
+            .delete {
+                filter {
+                    eq("id", teamId)
+                }
+            }
     }
 }

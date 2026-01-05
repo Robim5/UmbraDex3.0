@@ -1,305 +1,674 @@
 package com.umbra.umbradex.ui.shop
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.umbra.umbradex.ui.components.ShopItemCard
+import com.umbra.umbradex.ui.components.UmbraBottomNav
+import com.umbra.umbradex.ui.theme.UmbraBackground
+import com.umbra.umbradex.ui.theme.UmbraGold
+import com.umbra.umbradex.ui.theme.UmbraPrimary
+import com.umbra.umbradex.ui.theme.UmbraSurface
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.umbra.umbradex.data.model.ShopItem
-import com.umbra.umbradex.data.repository.*
-import com.umbra.umbradex.ui.components.LoadingOverlay
-import com.umbra.umbradex.ui.shop.components.PurchaseConfirmDialog
-import com.umbra.umbradex.ui.shop.components.ShopItemCard
-import com.umbra.umbradex.ui.theme.*
+import com.umbra.umbradex.utils.RarityUtils
+import com.umbra.umbradex.utils.getAvatarResourceId
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShopScreen() {
-    val viewModel = remember {
-        ShopViewModel(
-            authRepository = AuthRepository(),
-            shopRepository = ShopRepository(),
-            inventoryRepository = InventoryRepository(),
-            userRepository = UserRepository()
-        )
-    }
-
+fun ShopScreen(
+    viewModel: ShopViewModel = viewModel(),
+    userId: String
+) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Snackbar host
-    val snackbarHostState = remember { SnackbarHostState() }
+    var showPurchaseDialog by remember { mutableStateOf<ShopItem?>(null) }
+    var showInsufficientFundsDialog by remember { mutableStateOf(false) }
+    var showLockedDialog by remember { mutableStateOf<ShopItem?>(null) }
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Short
-            )
-            viewModel.dismissMessage()
-        }
-    }
-
-    LaunchedEffect(uiState.successMessage) {
-        uiState.successMessage?.let { message ->
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = SnackbarDuration.Short
-            )
-            viewModel.dismissMessage()
-        }
-    }
-
-    // Purchase confirmation dialog
-    if (uiState.showPurchaseDialog && uiState.selectedItem != null) {
-        PurchaseConfirmDialog(
-            item = uiState.selectedItem!!,
-            userGold = uiState.userGold,
-            onConfirm = {
-                viewModel.confirmPurchase()
-            },
-            onDismiss = {
-                viewModel.dismissPurchaseDialog()
-            }
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        PurpleBackground,
-                        PurpleSurface
-                    )
-                )
-            )
+    // Filtrar itens
+    val filteredItems = remember(
+        uiState.items,
+        uiState.selectedCategory,
+        uiState.selectedRarity
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top App Bar
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Shop",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = PurpleTertiary
-                    )
-                },
-                actions = {
-                    // Gold display
-                    Card(
-                        shape = MaterialTheme.shapes.medium,
-                        colors = CardDefaults.cardColors(
-                            containerColor = LegendaryColor.copy(alpha = 0.2f)
-                        ),
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Gold",
-                                tint = LegendaryColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = uiState.userGold.toString(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = LegendaryColor
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PurpleBackground
-                )
+        uiState.items
+            .filter { item ->
+                (uiState.selectedCategory == null || item.type == uiState.selectedCategory) &&
+                        (uiState.selectedRarity == null || item.rarity == uiState.selectedRarity)
+            }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Header com Gold
+            ShopHeader(gold = uiState.userGold)
+
+            // Filtros
+            ShopFilters(
+                selectedCategory = uiState.selectedCategory,
+                selectedRarity = uiState.selectedRarity,
+                onCategorySelected = { viewModel.filterByCategory(it) },
+                onRaritySelected = { viewModel.filterByRarity(it) }
             )
 
-            // Content
-            if (uiState.isLoading && uiState.shopItems.isEmpty()) {
-                LoadingOverlay(message = "Loading shop items...")
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
+            // Grid de itens
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Category tabs
-                    ScrollableTabRow(
-                        selectedTabIndex = uiState.selectedCategoryIndex,
-                        containerColor = Color.Transparent,
-                        contentColor = PurpleTertiary,
-                        edgePadding = 0.dp
-                    ) {
-                        ShopCategory.entries.forEachIndexed { index, category ->
-                            Tab(
-                                selected = uiState.selectedCategoryIndex == index,
-                                onClick = { viewModel.selectCategory(category) },
-                                text = {
-                                    Text(
-                                        text = category.displayName,
-                                        fontWeight = if (uiState.selectedCategoryIndex == index)
-                                            FontWeight.Bold
-                                        else
-                                            FontWeight.Normal
-                                    )
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = category.icon,
-                                        contentDescription = category.displayName
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Rarity filter
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        RarityFilter.entries.forEach { rarity ->
-                            FilterChip(
-                                selected = uiState.selectedRarity == rarity,
-                                onClick = { viewModel.selectRarity(rarity) },
-                                label = {
-                                    Text(
-                                        text = rarity.displayName,
-                                        fontWeight = if (uiState.selectedRarity == rarity)
-                                            FontWeight.Bold
-                                        else
-                                            FontWeight.Normal
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(rarity.color),
-                                    selectedLabelColor = Color.White
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Items count
-                    Text(
-                        text = "${uiState.displayedItems.size} items available",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Shop items list
-                    if (uiState.displayedItems.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "🛍️",
-                                    style = MaterialTheme.typography.displayMedium
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "No Items Found",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Try a different category or filter",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextSecondary,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(bottom = 16.dp)
-                        ) {
-                            items(
-                                items = uiState.displayedItems,
-                                key = { it.id }
-                            ) { item ->
-                                val isOwned = uiState.ownedItemIds.contains(item.id)
-                                val canAfford = uiState.userGold >= item.price
-
-                                ShopItemCard(
-                                    item = item,
-                                    isOwned = isOwned,
-                                    canAfford = canAfford,
-                                    onClick = {
-                                        if (!isOwned && canAfford) {
-                                            viewModel.showPurchaseDialog(item)
-                                        }
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(filteredItems) { item ->
+                        ShopItemCard(
+                            item = item,
+                            isOwned = uiState.ownedItems.contains(item.name),
+                            isEquipped = isItemEquipped(item, uiState),
+                            userLevel = uiState.userLevel,
+                            userGold = uiState.userGold,
+                            onClick = {
+                                when {
+                                    uiState.ownedItems.contains(item.name) -> {
+                                        // Já possui
                                     }
-                                )
+                                    item.minLevel > uiState.userLevel -> {
+                                        showLockedDialog = item
+                                    }
+                                    item.price > uiState.userGold -> {
+                                        showInsufficientFundsDialog = true
+                                    }
+                                    else -> {
+                                        showPurchaseDialog = item
+                                    }
+                                }
                             }
-                        }
+                        )
                     }
                 }
             }
         }
 
-        // Snackbar
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-        )
+        // Dialogs
+        showPurchaseDialog?.let { item ->
+            PurchaseConfirmDialog(
+                item = item,
+                currentGold = uiState.userGold,
+                onConfirm = {
+                    viewModel.purchaseItem(item, userId)
+                    showPurchaseDialog = null
+                },
+                onDismiss = { showPurchaseDialog = null }
+            )
+        }
+
+        if (showInsufficientFundsDialog) {
+            InsufficientFundsDialog(
+                onDismiss = { showInsufficientFundsDialog = false }
+            )
+        }
+
+        showLockedDialog?.let { item ->
+            ItemLockedDialog(
+                item = item,
+                userLevel = uiState.userLevel,
+                onDismiss = { showLockedDialog = null }
+            )
+        }
+
+        // Snackbar de sucesso
+        uiState.purchaseSuccess?.let { message ->
+            LaunchedEffect(message) {
+                kotlinx.coroutines.delay(2000)
+                viewModel.clearMessages()
+            }
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                containerColor = Color(0xFF4CAF50)
+            ) {
+                Text(message, color = Color.White)
+            }
+        }
+
+        // Snackbar de erro
+        uiState.error?.let { error ->
+            LaunchedEffect(error) {
+                kotlinx.coroutines.delay(2000)
+                viewModel.clearMessages()
+            }
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                containerColor = Color(0xFFF44336)
+            ) {
+                Text(error, color = Color.White)
+            }
+        }
     }
 }
 
-enum class ShopCategory(
-    val displayName: String,
-    val type: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    ALL("All", "all", Icons.Default.ShoppingCart),
-    THEMES("Themes", "theme", Icons.Default.Palette),
-    AVATARS("Avatars", "avatar", Icons.Default.Person),
-    BADGES("Badges", "badge", Icons.Default.Star),
-    NAME_COLORS("Name Colors", "name_color", Icons.Default.ColorLens)
+@Composable
+fun ShopHeader(gold: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "✨ Shop",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "💰",
+                    fontSize = 24.sp
+                )
+                Text(
+                    text = gold.toString(),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700)
+                )
+            }
+        }
+    }
 }
 
-enum class RarityFilter(
-    val displayName: String,
-    val rarity: String?,
-    val color: Long
+@Composable
+fun ShopFilters(
+    selectedCategory: String?,
+    selectedRarity: String?,
+    onCategorySelected: (String?) -> Unit,
+    onRaritySelected: (String?) -> Unit
 ) {
-    ALL("All", null, 0xFF9E9E9E),
-    COMMON("Common", "common", 0xFF9E9E9E),
-    RARE("Rare", "rare", 0xFF2196F3),
-    EPIC("Epic", "epic", 0xFF9C27B0),
-    LEGENDARY("Legendary", "legendary", 0xFFFFD700)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Filtro de categoria
+        Text("Category:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterChip(
+                selected = selectedCategory == null,
+                onClick = { onCategorySelected(null) },
+                label = { Text("All") }
+            )
+            FilterChip(
+                selected = selectedCategory == "skin",
+                onClick = { onCategorySelected("skin") },
+                label = { Text("Skins") }
+            )
+            FilterChip(
+                selected = selectedCategory == "theme",
+                onClick = { onCategorySelected("theme") },
+                label = { Text("Themes") }
+            )
+            FilterChip(
+                selected = selectedCategory == "badge",
+                onClick = { onCategorySelected("badge") },
+                label = { Text("Badges") }
+            )
+        }
+
+        // Filtro de raridade
+        Text("Rarity:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            FilterChip(
+                selected = selectedRarity == null,
+                onClick = { onRaritySelected(null) },
+                label = { Text("All") }
+            )
+            FilterChip(
+                selected = selectedRarity == "common",
+                onClick = { onRaritySelected("common") },
+                label = { Text("Common") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = RarityUtils.Common.copy(alpha = 0.2f)
+                )
+            )
+            FilterChip(
+                selected = selectedRarity == "rare",
+                onClick = { onRaritySelected("rare") },
+                label = { Text("Rare") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = RarityUtils.Rare.copy(alpha = 0.2f)
+                )
+            )
+            FilterChip(
+                selected = selectedRarity == "epic",
+                onClick = { onRaritySelected("epic") },
+                label = { Text("Epic") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = RarityUtils.Epic.copy(alpha = 0.2f)
+                )
+            )
+            FilterChip(
+                selected = selectedRarity == "legendary",
+                onClick = { onRaritySelected("legendary") },
+                label = { Text("Legendary") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = RarityUtils.Legendary.copy(alpha = 0.2f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun ShopItemCard(
+    item: ShopItem,
+    isOwned: Boolean,
+    isEquipped: Boolean,
+    userLevel: Int,
+    userGold: Int,
+    onClick: () -> Unit
+) {
+    val isLocked = item.minLevel > userLevel
+    val canAfford = userGold >= item.price
+    val rarityColor = RarityUtils.getColor(item.rarity)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.75f)
+            .clickable(enabled = !isOwned) { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isOwned) Color(0xFF2E2E2E) else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Badges no topo
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Badge de raridade
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = rarityColor.copy(alpha = 0.2f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, rarityColor)
+                    ) {
+                        Text(
+                            text = item.rarity.uppercase(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = rarityColor
+                        )
+                    }
+
+                    // Badge de OWNED ou EQUIPPED
+                    when {
+                        isEquipped -> {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF4CAF50)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Equipped",
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .padding(4.dp),
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                        isOwned -> {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF4CAF50).copy(alpha = 0.2f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50))
+                            ) {
+                                Text(
+                                    text = "OWNED",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4CAF50)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Imagem do item
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (item.type == "theme" && item.colors != null) {
+                                Brush.linearGradient(
+                                    item.colors.mapNotNull {
+                                        try { Color(android.graphics.Color.parseColor(it)) }
+                                        catch (e: Exception) { null }
+                                    }
+                                )
+                            } else {
+                                Brush.linearGradient(listOf(Color(0xFF424242), Color(0xFF616161)))
+                            }
+                        )
+                        .border(2.dp, rarityColor, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (item.type != "theme" && item.assetUrl != null) {
+                        val resourceId = getAvatarResourceId(item.assetUrl)
+                        Image(
+                            painter = painterResource(id = resourceId),
+                            contentDescription = item.name,
+                            modifier = Modifier.size(64.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+
+                    // Overlay de locked
+                    if (isLocked) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = Color.Black.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Locked",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(24.dp),
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Nome
+                Text(
+                    text = item.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // Descrição
+                if (item.description != null) {
+                    Text(
+                        text = item.description,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Preço ou status
+                when {
+                    isOwned -> {
+                        Text(
+                            text = "In Inventory",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    isLocked -> {
+                        Text(
+                            text = "🔒 Level ${item.minLevel}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF9800)
+                        )
+                    }
+                    else -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "💰 ${item.price}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (canAfford) Color(0xFFFFD700) else Color(0xFFF44336)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Dialogs
+@Composable
+fun PurchaseConfirmDialog(
+    item: ShopItem,
+    currentGold: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val remainingGold = currentGold - item.price
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Confirm Purchase", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Are you sure you want to buy:")
+                Text(
+                    text = item.name,
+                    fontWeight = FontWeight.Bold,
+                    color = RarityUtils.getColor(item.rarity)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Current Gold:")
+                    Text("💰 $currentGold", fontWeight = FontWeight.Bold)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Price:")
+                    Text("💰 ${item.price}", fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+                }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("After Purchase:", fontWeight = FontWeight.Bold)
+                    Text(
+                        "💰 $remainingGold",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                )
+            ) {
+                Text("Buy Now")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun InsufficientFundsDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Text("💸", fontSize = 48.sp)
+        },
+        title = {
+            Text("Insufficient Funds", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(
+                "You don't have enough gold to purchase this item. Complete missions to earn more gold!",
+                textAlign = TextAlign.Center
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFF44336)
+                )
+            ) {
+                Text("Got it!")
+            }
+        }
+    )
+}
+
+@Composable
+fun ItemLockedDialog(
+    item: ShopItem,
+    userLevel: Int,
+    onDismiss: () -> Unit
+) {
+    val levelsNeeded = item.minLevel - userLevel
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Text("🔒", fontSize = 48.sp)
+        },
+        title = {
+            Text("Item Locked", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "This item requires level ${item.minLevel}",
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "You need $levelsNeeded more level${if (levelsNeeded > 1) "s" else ""}!",
+                    textAlign = TextAlign.Center,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF9800)
+                )
+            ) {
+                Text("Got it!")
+            }
+        }
+    )
+}
+
+// Helper para verificar se o item está equipado
+fun isItemEquipped(item: ShopItem, uiState: ShopUiState): Boolean {
+    return when (item.type) {
+        "skin" -> item.name == uiState.equippedSkin
+        "theme" -> item.name == uiState.equippedTheme
+        "badge" -> item.name == uiState.equippedBadge
+        "title" -> item.name == uiState.equippedTitle
+        else -> false
+    }
 }

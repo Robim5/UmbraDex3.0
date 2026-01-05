@@ -1,156 +1,125 @@
 package com.umbra.umbradex.ui.home
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.umbra.umbradex.data.model.Pokemon
-import com.umbra.umbradex.data.model.Team
-import com.umbra.umbradex.data.model.User
-import com.umbra.umbradex.data.repository.*
-import com.umbra.umbradex.util.AudioPlayer
-import com.umbra.umbradex.util.Constants
-import com.umbra.umbradex.util.NetworkResult
+import com.umbra.umbradex.data.model.UserProfile
+import com.umbra.umbradex.data.repository.DataRepository
+import com.umbra.umbradex.data.repository.UserRepository
+import com.umbra.umbradex.utils.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class HomeUiState(
-    val isLoading: Boolean = true,
-    val user: User? = null,
-    val equippedPokemon: Pokemon? = null,
-    val teams: List<Team> = emptyList(),
-    val error: String? = null,
-    val petMessage: String? = null,
-    val showPetMessage: Boolean = false
-)
+class HomeViewModel : ViewModel() {
+    private val userRepository = UserRepository()
+    private val dataRepository = DataRepository()
 
-class HomeViewModel(
-    private val authRepository: AuthRepository,
-    private val userRepository: UserRepository,
-    private val pokemonRepository: PokemonRepository,
-    private val teamRepository: TeamRepository,
-    private val context: Context
-) : ViewModel() {
+    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    val uiState: StateFlow<HomeUiState> = _uiState
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    private val audioPlayer = AudioPlayer(context)
+    // Estado para tracking de cliques no pet
+    private val _petClickCount = MutableStateFlow(0)
+    val petClickCount: StateFlow<Int> = _petClickCount
 
     init {
-        loadHomeData()
-        playWelcomeSound()
+        loadData()
     }
 
-    private fun playWelcomeSound() {
+    fun loadData() {
         viewModelScope.launch {
-            audioPlayer.playSound(Constants.AUDIO_OPEN_DASHBOARD)
-        }
-    }
+            _uiState.value = HomeUiState.Loading
 
-    fun loadHomeData() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                var userProfile: UserProfile? = null
+                var livingDexStats: Map<String, Any>? = null
+                var missionStats: Map<String, Int>? = null
+                var totalTime: Long = 0L
 
-            val userId = authRepository.getCurrentUserId()
-            if (userId == null) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "User not authenticated"
-                )
-                return@launch
-            }
-
-            // Load user profile
-            when (val userResult = userRepository.getUserProfile(userId)) {
-                is NetworkResult.Success -> {
-                    _uiState.value = _uiState.value.copy(user = userResult.data)
-
-                    // Load equipped pokemon if exists
-                    userResult.data?.equippedStarter?.let { pokemonId ->
-                        loadEquippedPokemon(pokemonId)
-                    }
-
-                    // Load teams
-                    loadTeams(userId)
+                // Carregar Perfil
+                userRepository.getUserProfile().collect { res ->
+                    if (res is Resource.Success) userProfile = res.data
                 }
-                is NetworkResult.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = userResult.message
+
+                // Carregar Stats Living Dex
+                dataRepository.getLivingDexStats().collect { res ->
+                    if (res is Resource.Success) livingDexStats = res.data
+                }
+
+                // Carregar Stats Missões
+                dataRepository.getMissionStats().collect { res ->
+                    if (res is Resource.Success) missionStats = res.data
+                }
+
+                // Carregar Tempo Total
+                dataRepository.getTotalTimeOnline().collect { res ->
+                    if (res is Resource.Success) totalTime = res.data
+                }
+
+                if (userProfile != null && livingDexStats != null && missionStats != null) {
+                    _uiState.value = HomeUiState.Success(
+                        profile = userProfile!!,
+                        pokedexCaught = livingDexStats!!["total_caught"] as Int,
+                        pokedexTotal = livingDexStats!!["total_possible"] as Int,
+                        missionsCompleted = missionStats!!["completed"] ?: 0,
+                        missionsTotal = missionStats!!["total"] ?: 200,
+                        totalTimeSeconds = totalTime
                     )
+                } else {
+                    _uiState.value = HomeUiState.Error("Não foi possível carregar os dados.")
                 }
-                is NetworkResult.Loading -> {}
-            }
-        }
-    }
 
-    private suspend fun loadEquippedPokemon(pokemonId: Int) {
-        when (val pokemonResult = pokemonRepository.getPokemonById(pokemonId)) {
-            is NetworkResult.Success -> {
-                _uiState.value = _uiState.value.copy(
-                    equippedPokemon = pokemonResult.data,
-                    isLoading = false
-                )
+            } catch (e: Exception) {
+                _uiState.value = HomeUiState.Error(e.message ?: "Erro desconhecido")
             }
-            is NetworkResult.Error -> {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = pokemonResult.message
-                )
-            }
-            is NetworkResult.Loading -> {}
-        }
-    }
-
-    private suspend fun loadTeams(userId: String) {
-        when (val teamsResult = teamRepository.getUserTeams(userId)) {
-            is NetworkResult.Success -> {
-                _uiState.value = _uiState.value.copy(
-                    teams = teamsResult.data ?: emptyList()
-                )
-            }
-            is NetworkResult.Error -> {
-                // Don't show error for teams, just log it
-                println("Failed to load teams: ${teamsResult.message}")
-            }
-            is NetworkResult.Loading -> {}
         }
     }
 
     fun onPetClick() {
+        _petClickCount.value += 1
+
+        // Incrementa no backend
         viewModelScope.launch {
-            val messages = listOf(
-                "Pika Pika! ⚡",
-                "I love you, trainer! 💖",
-                "Let's catch them all! 🎯",
-                "Ready for adventure! 🌟",
-                "You're the best! ✨",
-                "Feed me berries! 🍓",
-                "Let's battle! ⚔️",
-                "I'm so happy! 😊"
-            )
+            userRepository.incrementPetClicks()
+        }
 
-            _uiState.value = _uiState.value.copy(
-                petMessage = messages.random(),
-                showPetMessage = true
-            )
-
-            audioPlayer.playSound(Constants.AUDIO_GOOD_ANIMAL)
-
-            // Hide message after 3 seconds
-            kotlinx.coroutines.delay(3000)
-            _uiState.value = _uiState.value.copy(showPetMessage = false)
+        // Reset após 3 cliques (para a rotação)
+        if (_petClickCount.value >= 3) {
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(1000) // Espera a animação
+                _petClickCount.value = 0
+            }
         }
     }
 
-    fun dismissError() {
-        _uiState.value = _uiState.value.copy(error = null)
+    fun getRankTitle(completionPercentage: Float): String {
+        return when {
+            completionPercentage >= 0.85f -> "Imperador Pokémon"
+            completionPercentage >= 0.50f -> "Campeão"
+            completionPercentage >= 0.25f -> "Gym King"
+            completionPercentage >= 0.10f -> "Sonhador"
+            else -> "Explorador do Novo Mundo"
+        }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        audioPlayer.release()
+    fun getRankColor(completionPercentage: Float): androidx.compose.ui.graphics.Color {
+        return when {
+            completionPercentage >= 0.85f -> androidx.compose.ui.graphics.Color(0xFFFFD700) // Gold
+            completionPercentage >= 0.50f -> androidx.compose.ui.graphics.Color(0xFFC0C0C0) // Silver
+            completionPercentage >= 0.25f -> androidx.compose.ui.graphics.Color(0xFFCD7F32) // Bronze
+            else -> androidx.compose.ui.graphics.Color.Gray
+        }
     }
+}
+
+sealed class HomeUiState {
+    object Loading : HomeUiState()
+    data class Success(
+        val profile: UserProfile,
+        val pokedexCaught: Int,
+        val pokedexTotal: Int,
+        val missionsCompleted: Int,
+        val missionsTotal: Int,
+        val totalTimeSeconds: Long
+    ) : HomeUiState()
+    data class Error(val message: String) : HomeUiState()
 }

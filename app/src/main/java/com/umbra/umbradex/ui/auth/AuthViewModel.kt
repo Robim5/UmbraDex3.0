@@ -1,140 +1,96 @@
 package com.umbra.umbradex.ui.auth
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.umbra.umbradex.data.local.PreferencesManager
-import com.umbra.umbradex.data.model.OnboardingData
-import com.umbra.umbradex.data.repository.AuthRepository
-import com.umbra.umbradex.data.repository.UserRepository
-import com.umbra.umbradex.util.NetworkResult
+import com.umbra.umbradex.data.supabase.UmbraSupabase
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import com.umbra.umbradex.data.repository.AuthRepository
+import com.umbra.umbradex.utils.Resource
+import kotlinx.coroutines.flow.asStateFlow
 
-sealed class AuthState {
-    object Initial : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
-    object Unauthenticated : AuthState()
-    data class Error(val message: String) : AuthState()
-    object SignUpSuccess : AuthState()
-}
+class AuthViewModel : ViewModel() {
 
-class AuthViewModel(
-    private val authRepository: AuthRepository,
-    private val userRepository: UserRepository,
-    private val preferencesManager: PreferencesManager
-) : ViewModel() {
+    private val authRepository = AuthRepository()
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    // Estados de autenticação
+    private val _authState = MutableStateFlow<Resource<Boolean>>(Resource.Loading)
+    val authState: StateFlow<Resource<Boolean>> = _authState.asStateFlow()
 
-    private val _isCheckingSession = MutableStateFlow(true)
-    val isCheckingSession: StateFlow<Boolean> = _isCheckingSession.asStateFlow()
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    // Estados para navegação
+    private val _isAuthenticated = MutableStateFlow(false)
+    val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
+
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
+
+    // Dados do onboarding
+    private val _onboardingData = MutableStateFlow(OnboardingData())
+    val onboardingData: StateFlow<OnboardingData> = _onboardingData.asStateFlow()
 
     init {
-        checkExistingSession()
+        checkAuthStatus()
     }
 
-    // Check if user is already logged in
-    private fun checkExistingSession() {
-        viewModelScope.launch {
-            _isCheckingSession.value = true
-
-            // Check if user is logged in with Supabase
-            val isLoggedIn = authRepository.isLoggedIn()
-
-            if (isLoggedIn) {
+    private fun checkAuthStatus() {
+        _isAuthenticated.value = authRepository.isUserLoggedIn()
+        if (_isAuthenticated.value) {
+            // Buscar ID do usuário atual
+            viewModelScope.launch {
                 val userId = authRepository.getCurrentUserId()
-                if (userId != null) {
-                    // Save session to preferences
-                    preferencesManager.saveUserSession(userId, "")
-                    _authState.value = AuthState.Authenticated
-                } else {
-                    _authState.value = AuthState.Unauthenticated
-                }
-            } else {
-                _authState.value = AuthState.Unauthenticated
+                _currentUserId.value = userId
             }
-
-            _isCheckingSession.value = false
         }
     }
 
     // Login
     fun login(email: String, password: String) {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            _isLoading.value = true
+            authRepository.login(email, password).collect { result ->
+                _authState.value = result
+                _isLoading.value = false
 
-            when (val result = authRepository.login(email, password)) {
-                is NetworkResult.Success -> {
-                    val userId = authRepository.getCurrentUserId()
-                    if (userId != null) {
-                        preferencesManager.saveUserSession(userId, email)
-                        _authState.value = AuthState.Authenticated
-                    } else {
-                        _authState.value = AuthState.Error("Failed to get user ID")
-                    }
-                }
-                is NetworkResult.Error -> {
-                    _authState.value = AuthState.Error(result.message ?: "Login failed")
-                }
-                is NetworkResult.Loading -> {
-                    // Already loading
+                if (result is Resource.Success) {
+                    _isAuthenticated.value = true
+                    _currentUserId.value = authRepository.getCurrentUserId()
                 }
             }
         }
     }
 
-    // Sign up (creates auth account only)
-    fun signUp(email: String, password: String) {
+    // Signup (após completar onboarding)
+    fun signup() {
         viewModelScope.launch {
-            _authState.value = AuthState.Loading
+            _isLoading.value = true
+            val data = _onboardingData.value
 
-            when (val result = authRepository.signUp(email, password)) {
-                is NetworkResult.Success -> {
-                    // After signup, automatically login
-                    when (val loginResult = authRepository.login(email, password)) {
-                        is NetworkResult.Success -> {
-                            _authState.value = AuthState.SignUpSuccess
-                        }
-                        is NetworkResult.Error -> {
-                            _authState.value = AuthState.Error(loginResult.message ?: "Auto-login failed")
-                        }
-                        is NetworkResult.Loading -> {}
-                    }
-                }
-                is NetworkResult.Error -> {
-                    _authState.value = AuthState.Error(result.message ?: "Sign up failed")
-                }
-                is NetworkResult.Loading -> {
-                    // Already loading
-                }
-            }
-        }
-    }
+            authRepository.signup(
+                email = data.email,
+                password = data.password,
+                username = data.username,
+                birthDate = data.birthDate,
+                pokemonKnowledge = data.pokemonKnowledge,
+                favoriteType = data.favoriteType,
+                avatar = data.avatar,
+                starterId = data.starterId
+            ).collect { result ->
+                _authState.value = result
+                _isLoading.value = false
 
-    // Complete profile (after onboarding)
-    fun completeOnboarding(onboardingData: OnboardingData) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-
-            when (val result = authRepository.createProfile(onboardingData)) {
-                is NetworkResult.Success -> {
-                    val userId = authRepository.getCurrentUserId()
-                    if (userId != null) {
-                        preferencesManager.saveUserSession(userId, "")
-                        _authState.value = AuthState.Authenticated
-                    } else {
-                        _authState.value = AuthState.Error("Failed to get user ID")
-                    }
-                }
-                is NetworkResult.Error -> {
-                    _authState.value = AuthState.Error(result.message ?: "Failed to create profile")
-                }
-                is NetworkResult.Loading -> {
-                    // Already loading
+                if (result is Resource.Success) {
+                    _isAuthenticated.value = true
+                    _currentUserId.value = authRepository.getCurrentUserId()
                 }
             }
         }
@@ -144,13 +100,32 @@ class AuthViewModel(
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()
-            preferencesManager.clearSession()
-            _authState.value = AuthState.Unauthenticated
+            _isAuthenticated.value = false
+            _currentUserId.value = null
+            _authState.value = Resource.Loading
         }
     }
 
-    // Reset state
-    fun resetState() {
-        _authState.value = AuthState.Unauthenticated
+    // Atualizar dados do onboarding
+    fun updateOnboardingData(update: OnboardingData.() -> OnboardingData) {
+        _onboardingData.value = _onboardingData.value.update()
+    }
+
+    // Reset do estado
+    fun resetAuthState() {
+        _authState.value = Resource.Loading
     }
 }
+
+// Data class para dados do onboarding
+data class OnboardingData(
+    val email: String = "",
+    val password: String = "",
+    val username: String = "",
+    val birthDate: String = "",
+    val pokemonKnowledge: String = "intermediate",
+    val favoriteType: String = "fire",
+    val avatar: String = "standard_male1",
+    val starterId: Int = 1,
+    val currentStep: Int = 0
+)

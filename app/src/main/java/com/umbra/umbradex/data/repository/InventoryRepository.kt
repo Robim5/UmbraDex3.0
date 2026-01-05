@@ -1,216 +1,114 @@
 package com.umbra.umbradex.data.repository
 
-import com.umbra.umbradex.UmbraDexApplication
-import com.umbra.umbradex.data.model.UserInventory
 import com.umbra.umbradex.data.model.ShopItem
-import com.umbra.umbradex.data.model.EquippedItems
-import com.umbra.umbradex.util.NetworkResult
+import com.umbra.umbradex.data.supabase.UmbraSupabase
+import com.umbra.umbradex.utils.Resource
 import io.github.jan.supabase.postgrest.from
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+data class InventoryItem(
+    val item: ShopItem,
+    val acquiredAt: String
+)
 
 class InventoryRepository {
 
-    private val supabase = UmbraDexApplication.supabase
-
-    // Get all user inventory items
-    suspend fun getUserInventory(userId: String): NetworkResult<List<UserInventory>> {
-        return try {
-            val result = supabase.from("user_inventory")
-                .select {
+    // Buscar todos os itens do inventário do usuário
+    suspend fun getUserInventory(userId: String): Flow<Resource<List<InventoryItem>>> = flow {
+        emit(Resource.Loading)
+        try {
+            // 1. Buscar IDs dos itens no inventário
+            val inventoryRecords = UmbraSupabase.client.from("inventory")
+                .select(Columns.list("item_id", "category", "acquired_at")) {
                     filter {
                         eq("user_id", userId)
                     }
                 }
-                .decodeList<UserInventory>()
+                .decodeList<Map<String, String>>()
 
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch inventory")
-        }
-    }
+            // 2. Buscar detalhes dos itens na shop_items
+            val itemIds = inventoryRecords.mapNotNull { it["item_id"] }
 
-    // Get user inventory by type
-    suspend fun getUserInventoryByType(userId: String, type: String): NetworkResult<List<UserInventory>> {
-        return try {
-            // First get all inventory items
-            val inventory = getUserInventory(userId)
-            if (inventory !is NetworkResult.Success) {
-                return NetworkResult.Error("Failed to fetch inventory")
-            }
-
-            // Then filter by getting shop items details
-            val itemIds = inventory.data!!.map { it.itemId }
-            val shopItems = supabase.from("shop_items")
-                .select {
-                    filter {
-                        isIn("id", itemIds)
-                        eq("type", type)
-                    }
-                }
-                .decodeList<ShopItem>()
-
-            val shopItemIds = shopItems.map { it.id }
-            val filtered = inventory.data.filter { it.itemId in shopItemIds }
-
-            NetworkResult.Success(filtered)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch inventory by type")
-        }
-    }
-
-    // Add item to inventory (purchase)
-    suspend fun purchaseItem(userId: String, itemId: Int): NetworkResult<UserInventory> {
-        return try {
-            val item = buildJsonObject {
-                put("user_id", userId)
-                put("item_id", itemId)
-                put("is_equipped", false)
-            }
-
-            val result = supabase.from("user_inventory")
-                .insert(item)
-                .decodeSingle<UserInventory>()
-
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to purchase item")
-        }
-    }
-
-    // Equip item
-    suspend fun equipItem(userId: String, itemId: Int, itemType: String): NetworkResult<Unit> {
-        return try {
-            // First unequip all items of the same type
-            val currentInventory = getUserInventoryByType(userId, itemType)
-            if (currentInventory is NetworkResult.Success) {
-                currentInventory.data!!.forEach { inventoryItem ->
-                    if (inventoryItem.isEquipped) {
-                        unequipItem(userId, inventoryItem.itemId)
-                    }
-                }
-            }
-
-            // Then equip the new item
-            supabase.from("user_inventory")
-                .update(buildJsonObject {
-                    put("is_equipped", true)
-                }) {
-                    filter {
-                        eq("user_id", userId)
-                        eq("item_id", itemId)
-                    }
-                }
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to equip item")
-        }
-    }
-
-    // Unequip item
-    suspend fun unequipItem(userId: String, itemId: Int): NetworkResult<Unit> {
-        return try {
-            supabase.from("user_inventory")
-                .update(buildJsonObject {
-                    put("is_equipped", false)
-                }) {
-                    filter {
-                        eq("user_id", userId)
-                        eq("item_id", itemId)
-                    }
-                }
-
-            NetworkResult.Success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to unequip item")
-        }
-    }
-
-    // Get equipped items
-    suspend fun getEquippedItems(userId: String): NetworkResult<EquippedItems> {
-        return try {
-            val inventory = supabase.from("user_inventory")
-                .select {
-                    filter {
-                        eq("user_id", userId)
-                        eq("is_equipped", true)
-                    }
-                }
-                .decodeList<UserInventory>()
-
-            // Get shop item details for equipped items
-            val itemIds = inventory.map { it.itemId }
             if (itemIds.isEmpty()) {
-                return NetworkResult.Success(EquippedItems())
+                emit(Resource.Success(emptyList()))
+                return@flow
             }
 
-            val shopItems = supabase.from("shop_items")
-                .select {
+            val shopItems = UmbraSupabase.client.from("shop_items")
+                .select() {
                     filter {
-                        isIn("id", itemIds)
+                        // Buscar apenas os itens que o user possui
+                        or {
+                            itemIds.forEach { itemId ->
+                                eq("name", itemId)
+                            }
+                        }
                     }
                 }
                 .decodeList<ShopItem>()
 
-            val avatar = shopItems.firstOrNull { it.type == "avatar" }
-            val badge = shopItems.firstOrNull { it.type == "badge" }
-            val nameColor = shopItems.firstOrNull { it.type == "name_color" }
-            val theme = shopItems.firstOrNull { it.type == "theme" }
-
-            NetworkResult.Success(
-                EquippedItems(
-                    avatar = avatar,
-                    badge = badge,
-                    nameColor = nameColor,
-                    theme = theme
-                )
-            )
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch equipped items")
-        }
-    }
-
-    // Check if user owns item
-    suspend fun ownsItem(userId: String, itemId: Int): NetworkResult<Boolean> {
-        return try {
-            val result = supabase.from("user_inventory")
-                .select {
-                    filter {
-                        eq("user_id", userId)
-                        eq("item_id", itemId)
-                    }
+            // 3. Combinar os dados
+            val inventoryItems = shopItems.mapNotNull { shopItem ->
+                val record = inventoryRecords.find { it["item_id"] == shopItem.name }
+                record?.let {
+                    InventoryItem(
+                        item = shopItem,
+                        acquiredAt = it["acquired_at"] ?: ""
+                    )
                 }
-                .decodeList<UserInventory>()
-
-            NetworkResult.Success(result.isNotEmpty())
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to check item ownership")
-        }
-    }
-
-    // Get inventory count by rarity
-    suspend fun getInventoryCountByRarity(userId: String): NetworkResult<Map<String, Int>> {
-        return try {
-            val inventory = getUserInventory(userId)
-            if (inventory !is NetworkResult.Success) {
-                return NetworkResult.Error("Failed to fetch inventory")
             }
 
-            val itemIds = inventory.data!!.map { it.itemId }
-            val shopItems = supabase.from("shop_items")
-                .select {
+            emit(Resource.Success(inventoryItems))
+        } catch (e: Exception) {
+            emit(Resource.Error("Failed to load inventory: ${e.message}", e))
+        }
+    }
+
+    // Equipar um item
+    suspend fun equipItem(
+        userId: String,
+        itemName: String,
+        category: String
+    ): Resource<String> {
+        return try {
+            val updateData = when (category) {
+                "skin" -> mapOf("equipped_skin" to itemName)
+                "theme" -> mapOf("equipped_theme" to itemName)
+                "badge" -> mapOf("equipped_badge" to itemName)
+                "name_color" -> mapOf("equipped_name_color" to itemName)
+                "title" -> mapOf("equipped_title" to itemName)
+                else -> return Resource.Error("Invalid category")
+            }
+
+            UmbraSupabase.client.from("profiles")
+                .update(updateData) {
                     filter {
-                        isIn("id", itemIds)
+                        eq("id", userId)
                     }
                 }
-                .decodeList<ShopItem>()
 
-            val counts = shopItems.groupingBy { it.rarity }.eachCount()
-
-            NetworkResult.Success(counts)
+            Resource.Success("Item equipped successfully!")
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to get inventory counts")
+            Resource.Error("Failed to equip item: ${e.message}", e)
+        }
+    }
+
+    // Buscar detalhes de um item específico (para preview)
+    suspend fun getItemDetails(itemName: String): Resource<ShopItem> {
+        return try {
+            val item = UmbraSupabase.client.from("shop_items")
+                .select() {
+                    filter {
+                        eq("name", itemName)
+                    }
+                }
+                .decodeSingle<ShopItem>()
+
+            Resource.Success(item)
+        } catch (e: Exception) {
+            Resource.Error("Failed to load item: ${e.message}", e)
         }
     }
 }

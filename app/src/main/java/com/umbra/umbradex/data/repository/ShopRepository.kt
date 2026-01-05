@@ -1,113 +1,117 @@
 package com.umbra.umbradex.data.repository
 
-import com.umbra.umbradex.UmbraDexApplication
 import com.umbra.umbradex.data.model.ShopItem
-import com.umbra.umbradex.util.NetworkResult
+import com.umbra.umbradex.data.supabase.UmbraSupabase
+import com.umbra.umbradex.utils.Resource
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+
+
+
 
 class ShopRepository {
 
-    private val supabase = UmbraDexApplication.supabase
-
-    // Get all shop items
-    suspend fun getAllShopItems(): NetworkResult<List<ShopItem>> {
-        return try {
-            val result = supabase.from("shop_items")
+    // Buscar todos os itens disponíveis na loja
+    suspend fun getAvailableItems(): Flow<Resource<List<ShopItem>>> = flow {
+        emit(Resource.Loading)
+        try {
+            val items = UmbraSupabase.client.from("shop_items")
                 .select()
                 .decodeList<ShopItem>()
+                .filter { it.isAvailable }
+                .sortedBy { it.sortOrder }
 
-            NetworkResult.Success(result)
+            emit(Resource.Success(items))
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch shop items")
+            emit(Resource.Error("Failed to load shop items: ${e.message}", e))
         }
     }
 
-    // Get shop items by type
-    suspend fun getShopItemsByType(type: String): NetworkResult<List<ShopItem>> {
+    // Verificar se o user já possui um item
+    suspend fun userOwnsItem(userId: String, itemName: String, category: String): Boolean {
         return try {
-            val result = supabase.from("shop_items")
-                .select {
+            val result = UmbraSupabase.client.from("inventory")
+                .select(Columns.list("id")) {
                     filter {
-                        eq("type", type)
+                        eq("user_id", userId)
+                        eq("item_id", itemName)
+                        eq("category", category)
                     }
                 }
-                .decodeList<ShopItem>()
+                .decodeList<Map<String, Any>>()
 
-            NetworkResult.Success(result)
+            result.isNotEmpty()
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch shop items by type")
+            false
         }
     }
 
-    // Get shop items by rarity
-    suspend fun getShopItemsByRarity(rarity: String): NetworkResult<List<ShopItem>> {
+    // Comprar item (gastar gold + adicionar ao inventário)
+    suspend fun purchaseItem(
+        userId: String,
+        item: ShopItem,
+        currentGold: Int
+    ): Resource<String> {
         return try {
-            val result = supabase.from("shop_items")
+            // 1. Verificar se tem gold suficiente
+            if (currentGold < item.price) {
+                return Resource.Error("Insufficient gold")
+            }
+
+            // 2. Verificar se já possui
+            if (userOwnsItem(userId, item.name, item.type)) {
+                return Resource.Error("Item already owned")
+            }
+
+            // 3. Gastar gold usando RPC
+            UmbraSupabase.client.from("rpc")
                 .select {
                     filter {
-                        eq("rarity", rarity)
+                        eq("spend_gold", mapOf(
+                            "p_user_id" to userId,
+                            "p_amount" to item.price
+                        ))
                     }
                 }
-                .decodeList<ShopItem>()
 
-            NetworkResult.Success(result)
+            // 4. Adicionar ao inventário
+            UmbraSupabase.client.from("inventory").insert(
+                mapOf(
+                    "user_id" to userId,
+                    "item_id" to item.name,
+                    "category" to item.type
+                )
+            )
+
+            Resource.Success("Item purchased successfully!")
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch shop items by rarity")
+            if (e.message?.contains("Insufficient gold") == true) {
+                Resource.Error("Not enough gold!")
+            } else {
+                Resource.Error("Purchase failed: ${e.message}", e)
+            }
         }
     }
 
-    // Get shop items by type AND rarity
-    suspend fun getShopItemsByTypeAndRarity(type: String, rarity: String): NetworkResult<List<ShopItem>> {
-        return try {
-            val result = supabase.from("shop_items")
-                .select {
+    // Buscar itens do inventário do user
+    suspend fun getUserInventory(userId: String): Flow<Resource<List<String>>> = flow {
+        emit(Resource.Loading)
+        try {
+            val inventory = UmbraSupabase.client.from("inventory")
+                .select(Columns.list("item_id")) {
                     filter {
-                        eq("type", type)
-                        eq("rarity", rarity)
+                        eq("user_id", userId)
                     }
                 }
-                .decodeList<ShopItem>()
+                .decodeList<Map<String, String>>()
+                .mapNotNull { it["item_id"] }
 
-            NetworkResult.Success(result)
+            emit(Resource.Success(inventory))
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch shop items")
+            emit(Resource.Error("Failed to load inventory: ${e.message}", e))
         }
-    }
-
-    // Get single shop item
-    suspend fun getShopItem(itemId: Int): NetworkResult<ShopItem> {
-        return try {
-            val result = supabase.from("shop_items")
-                .select {
-                    filter {
-                        eq("id", itemId)
-                    }
-                }
-                .decodeSingle<ShopItem>()
-
-            NetworkResult.Success(result)
-        } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to fetch shop item")
-        }
-    }
-
-    // Get avatars (for shop display)
-    suspend fun getAvatars(): NetworkResult<List<ShopItem>> {
-        return getShopItemsByType("avatar")
-    }
-
-    // Get themes (for shop display)
-    suspend fun getThemes(): NetworkResult<List<ShopItem>> {
-        return getShopItemsByType("theme")
-    }
-
-    // Get badges (for shop display)
-    suspend fun getBadges(): NetworkResult<List<ShopItem>> {
-        return getShopItemsByType("badge")
-    }
-
-    // Get name colors (for shop display)
-    suspend fun getNameColors(): NetworkResult<List<ShopItem>> {
-        return getShopItemsByType("name_color")
     }
 }

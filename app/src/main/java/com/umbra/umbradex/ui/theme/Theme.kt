@@ -1,62 +1,52 @@
 package com.umbra.umbradex.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = PurplePrimary,
-    secondary = PurpleSecondary,
-    tertiary = PurpleTertiary,
-    background = PurpleBackground,
-    surface = PurpleSurface,
-    surfaceVariant = PurpleSurfaceVariant,
-    onPrimary = TextPrimary,
-    onSecondary = TextPrimary,
-    onTertiary = TextPrimary,
-    onBackground = TextPrimary,
-    onSurface = TextPrimary,
-    error = ErrorColor,
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = PurplePrimary,
-    secondary = PurpleSecondary,
-    tertiary = PurpleTertiary,
-    background = PurpleBackgroundLight,
-    surface = PurpleSurfaceLight,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-)
+// Função auxiliar para criar cores a partir de HEX seguro
+fun fromHex(hex: String, default: Color): Color {
+    return try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (e: Exception) {
+        default
+    }
+}
 
 @Composable
 fun UmbraDexTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // We want our purple theme always
+    // Recebe a paleta de cores do perfil (se existir)
+    themeColors: List<String>? = null,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else DarkColorScheme // Force dark for now
+    // 1. Definir as cores base (Roxo Default ou Tema Personalizado)
+    val primaryColor = if (!themeColors.isNullOrEmpty()) fromHex(themeColors[0], UmbraPrimary) else UmbraPrimary
+    val secondaryColor = if (themeColors != null && themeColors.size > 1) fromHex(themeColors[1], UmbraAccent) else UmbraAccent
+    val backgroundColor = if (themeColors != null && themeColors.size > 3) fromHex(themeColors[3], UmbraBackground) else UmbraBackground
+
+    // 2. Criar o esquema de cores dinâmico
+    val colorScheme = darkColorScheme(
+        primary = primaryColor,
+        secondary = secondaryColor,
+        tertiary = UmbraGold,
+        background = backgroundColor,
+        surface = UmbraSurface, // Mantemos superfície escura para consistência
+        onPrimary = Color.White,
+        onBackground = Color.White,
+        onSurface = Color.White
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = backgroundColor.toArgb() // A barra de status muda com o tema!
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }

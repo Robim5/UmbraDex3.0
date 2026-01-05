@@ -1,68 +1,66 @@
 package com.umbra.umbradex.ui.auth
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.umbra.umbradex.ui.components.UmbraButton
+import com.umbra.umbradex.ui.components.UmbraTextField
+import com.umbra.umbradex.ui.navigation.Screen
+import com.umbra.umbradex.ui.theme.UmbraBackground
+import com.umbra.umbradex.ui.theme.UmbraPrimary
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.sp
 import com.umbra.umbradex.R
-import com.umbra.umbradex.ui.theme.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.lifecycle.viewmodel.compose.viewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun SignUpScreen(
-    authState: AuthState,
-    onSignUpClick: (String, String) -> Unit,
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    navController: NavController,
+    viewModel: AuthViewModel = viewModel()
 ) {
     var email by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
-
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
-
-    val focusManager = LocalFocusManager.current
-    val scrollState = rememberScrollState()
-    val isLoading = authState is AuthState.Loading
+    var showError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     Box(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        PurpleBackground,
-                        PurpleSurface
+                        Color(0xFF1A1A2E),
+                        Color(0xFF16213E)
                     )
                 )
             )
@@ -70,88 +68,91 @@ fun SignUpScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Back button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = PurpleTertiary
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             // Logo
             Image(
                 painter = painterResource(id = R.drawable.logo),
                 contentDescription = "UmbraDex Logo",
-                modifier = Modifier
-                    .size(100.dp)
-                    .padding(bottom = 16.dp)
+                modifier = Modifier.size(100.dp)
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Title
             Text(
                 text = "Create Account",
-                style = MaterialTheme.typography.headlineLarge,
-                color = PurpleTertiary,
-                fontWeight = FontWeight.Bold
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Join the UmbraDex community",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextSecondary,
-                textAlign = TextAlign.Center
+                text = "Join UmbraDex today",
+                fontSize = 16.sp,
+                color = Color.White.copy(alpha = 0.7f)
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Username Field
+            OutlinedTextField(
+                value = username,
+                onValueChange = {
+                    username = it
+                    showError = false
+                },
+                label = { Text("Username") },
+                placeholder = { Text("Choose a username") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Username"
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF9C27B0),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    focusedLabelColor = Color(0xFF9C27B0),
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Email Field
             OutlinedTextField(
                 value = email,
                 onValueChange = {
                     email = it
-                    emailError = null
+                    showError = false
                 },
                 label = { Text("Email") },
+                placeholder = { Text("your@email.com") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Email,
-                        contentDescription = "Email Icon",
-                        tint = PurpleTertiary
+                        contentDescription = "Email"
                     )
                 },
-                isError = emailError != null,
-                supportingText = emailError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PurplePrimary,
-                    unfocusedBorderColor = PurpleTertiary,
-                    focusedLabelColor = PurplePrimary,
-                    cursorColor = PurplePrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
+                    focusedBorderColor = Color(0xFF9C27B0),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    focusedLabelColor = Color(0xFF9C27B0),
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -161,53 +162,36 @@ fun SignUpScreen(
                 value = password,
                 onValueChange = {
                     password = it
-                    passwordError = null
+                    showError = false
                 },
                 label = { Text("Password") },
+                placeholder = { Text("Min. 6 characters") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Password Icon",
-                        tint = PurpleTertiary
+                        contentDescription = "Password"
                     )
                 },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
-                            imageVector = if (passwordVisible)
-                                Icons.Default.Visibility
-                            else
-                                Icons.Default.VisibilityOff,
-                            contentDescription = if (passwordVisible)
-                                "Hide password"
-                            else
-                                "Show password",
-                            tint = PurpleTertiary
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password"
                         )
                     }
                 },
-                visualTransformation = if (passwordVisible)
-                    VisualTransformation.None
-                else
-                    PasswordVisualTransformation(),
-                isError = passwordError != null,
-                supportingText = passwordError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                ),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PurplePrimary,
-                    unfocusedBorderColor = PurpleTertiary,
-                    focusedLabelColor = PurplePrimary,
-                    cursorColor = PurplePrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
+                    focusedBorderColor = Color(0xFF9C27B0),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    focusedLabelColor = Color(0xFF9C27B0),
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -217,173 +201,128 @@ fun SignUpScreen(
                 value = confirmPassword,
                 onValueChange = {
                     confirmPassword = it
-                    confirmPasswordError = null
+                    showError = false
                 },
                 label = { Text("Confirm Password") },
+                placeholder = { Text("Re-enter password") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Confirm Password Icon",
-                        tint = PurpleTertiary
+                        contentDescription = "Confirm Password"
                     )
                 },
                 trailingIcon = {
                     IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Icon(
-                            imageVector = if (confirmPasswordVisible)
-                                Icons.Default.Visibility
-                            else
-                                Icons.Default.VisibilityOff,
-                            contentDescription = if (confirmPasswordVisible)
-                                "Hide password"
-                            else
-                                "Show password",
-                            tint = PurpleTertiary
+                            imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
                         )
                     }
                 },
-                visualTransformation = if (confirmPasswordVisible)
-                    VisualTransformation.None
-                else
-                    PasswordVisualTransformation(),
-                isError = confirmPasswordError != null,
-                supportingText = confirmPasswordError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        if (validateSignUpInputs(
-                                email, password, confirmPassword,
-                                onEmailError = { emailError = it },
-                                onPasswordError = { passwordError = it },
-                                onConfirmPasswordError = { confirmPasswordError = it }
-                            )) {
-                            onSignUpClick(email, password)
-                        }
-                    }
-                ),
+                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PurplePrimary,
-                    unfocusedBorderColor = PurpleTertiary,
-                    focusedLabelColor = PurplePrimary,
-                    cursorColor = PurplePrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
+                    focusedBorderColor = Color(0xFF9C27B0),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    focusedLabelColor = Color(0xFF9C27B0),
+                    unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Error message
-            if (authState is AuthState.Error) {
+            // Error Message
+            if (showError) {
                 Text(
-                    text = authState.message,
-                    color = ErrorColor,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    text = errorMessage,
+                    color = Color(0xFFFF5252),
+                    fontSize = 14.sp,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Sign Up Button
             Button(
                 onClick = {
-                    if (validateSignUpInputs(
-                            email, password, confirmPassword,
-                            onEmailError = { emailError = it },
-                            onPasswordError = { passwordError = it },
-                            onConfirmPasswordError = { confirmPasswordError = it }
-                        )) {
-                        onSignUpClick(email, password)
+                    // Validações
+                    when {
+                        username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() -> {
+                            showError = true
+                            errorMessage = "Please fill all fields"
+                        }
+                        password != confirmPassword -> {
+                            showError = true
+                            errorMessage = "Passwords don't match"
+                        }
+                        password.length < 6 -> {
+                            showError = true
+                            errorMessage = "Password must be at least 6 characters"
+                        }
+                        !email.contains("@") -> {
+                            showError = true
+                            errorMessage = "Please enter a valid email"
+                        }
+                        else -> {
+                            // Salvar dados no ViewModel
+                            viewModel.updateOnboardingData {
+                                copy(
+                                    email = email,
+                                    password = password,
+                                    username = username
+                                )
+                            }
+                            // Ir para Onboarding
+                            navController.navigate(Screen.Onboarding.route)
+                        }
                     }
                 },
-                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PurplePrimary,
-                    contentColor = TextPrimary
-                ),
-                shape = RoundedCornerShape(12.dp)
+                    containerColor = Color(0xFF9C27B0)
+                )
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = TextPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Sign Up",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Continue to Onboarding",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Terms text
-            Text(
-                text = "By signing up, you agree to our Terms & Privacy Policy",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
+            // Login Link
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Already have an account? ",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp
+                )
+                TextButton(
+                    onClick = {
+                        navController.popBackStack()
+                    }
+                ) {
+                    Text(
+                        text = "Login",
+                        color = Color(0xFF9C27B0),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
-}
-
-// Validation helper for sign up
-private fun validateSignUpInputs(
-    email: String,
-    password: String,
-    confirmPassword: String,
-    onEmailError: (String?) -> Unit,
-    onPasswordError: (String?) -> Unit,
-    onConfirmPasswordError: (String?) -> Unit
-): Boolean {
-    var isValid = true
-
-    // Email validation
-    if (email.isBlank()) {
-        onEmailError("Email is required")
-        isValid = false
-    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-        onEmailError("Invalid email format")
-        isValid = false
-    } else {
-        onEmailError(null)
-    }
-
-    // Password validation
-    if (password.isBlank()) {
-        onPasswordError("Password is required")
-        isValid = false
-    } else if (password.length < 6) {
-        onPasswordError("Password must be at least 6 characters")
-        isValid = false
-    } else {
-        onPasswordError(null)
-    }
-
-    // Confirm password validation
-    if (confirmPassword.isBlank()) {
-        onConfirmPasswordError("Please confirm your password")
-        isValid = false
-    } else if (password != confirmPassword) {
-        onConfirmPasswordError("Passwords don't match")
-        isValid = false
-    } else {
-        onConfirmPasswordError(null)
-    }
-
-    return isValid
 }

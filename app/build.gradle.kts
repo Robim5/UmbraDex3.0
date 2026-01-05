@@ -1,25 +1,24 @@
+// Conteúdo completo e funcional para o teu app/build.gradle.kts
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
     namespace = "com.umbra.umbradex"
-    compileSdk = 34
-
-    lint {
-        disable.add("UnsafeOptInUsageError")
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.umbra.umbradex"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -42,21 +41,15 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-opt-in=kotlinx.serialization.InternalSerializationApi",
-            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi"
-        )
     }
 
     buildFeatures {
         compose = true
     }
 
-    // Em app/build.gradle.kts
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8" // 1.5.4
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
-
 
     packaging {
         resources {
@@ -66,78 +59,50 @@ android {
 }
 
 dependencies {
-    // Core Android
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    implementation("androidx.activity:activity-compose:1.8.2")
-
-    // Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    // --- ANDROID CORE & COMPOSE ---
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.activity:activity-compose:1.12.0")
+    implementation(platform("androidx.compose:compose-bom:2024.09.00")) // BOM do Compose
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
 
-    // Compose Navigation
+    // --- NAVEGAÇÃO ---
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
-    // ViewModel & LiveData Compose
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    // --- SUPABASE (Official Kotlin Client) ---
+    val supabaseVersion = "3.2.6"
+    implementation(platform("io.github.jan-tennert.supabase:bom:$supabaseVersion"))
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
 
-    // Supabase - VERSÕES ATUALIZADAS
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.6.1")
-    implementation("io.github.jan-tennert.supabase:auth-kt:2.6.1")
-    implementation("io.github.jan-tennert.supabase:storage-kt:2.6.1")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:2.6.1")
+    // --- KTOR HTTP ENGINE (versão compatível com Supabase) ---
+    val ktorVersion = "3.3.1"
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
 
-    // Ktor (required by Supabase) - VERSÕES ATUALIZADAS
-    implementation("io.ktor:ktor-client-android:2.3.12")
-    implementation("io.ktor:ktor-client-core:2.3.12")
-    implementation("io.ktor:ktor-utils:2.3.12")
-    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
-
-    // Kotlinx Serialization - VERSÃO ATUALIZADA
+    // --- SERIALIZAÇÃO (Necessário para o Supabase) ---
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-
-    // Retrofit (for PokéAPI)
+    // --- POKEAPI & IMAGENS ---
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-
-    // Coil (Image Loading)
     implementation("io.coil-kt:coil-compose:2.5.0")
-    implementation("io.coil-kt:coil-gif:2.5.0")
 
-    // DataStore (Local Preferences)
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    // --- GRÁFICOS ---
+    implementation("com.patrykandpatrick.vico:compose:1.13.1")
+    implementation("com.patrykandpatrick.vico:core:1.13.1")
 
-    // ExoPlayer / Media3 (Audio)
-    implementation("androidx.media3:media3-exoplayer:1.2.1")
-    implementation("androidx.media3:media3-ui:1.2.1")
-
-    // Accompanist (System UI Controller for status bar)
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
-
-    // Gson (JSON parsing)
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation(libs.androidx.compose.material3.android)
-
-    // Testing
+    // --- TESTES ---
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-
-    // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
